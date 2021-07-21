@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Add force failover an amphora command ``loadbalancer amphora failover``.

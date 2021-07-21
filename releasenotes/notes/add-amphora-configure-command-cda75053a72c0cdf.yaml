@@ -1,5 +1,0 @@
----
-features:
-  - |
-    Adds the ability to refresh the configuration of an amphora agent with the
-    ``loadbalancer amphora configure`` command.

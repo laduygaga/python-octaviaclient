@@ -1,6 +1,0 @@
----
-features:
-  - |
-    Added a repeatable optional argument ``--tls-version`` for
-    setting one or more  TLS protocol versions when creating
-    or updating a pool.

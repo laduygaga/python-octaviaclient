@@ -12,14 +12,9 @@
 #   under the License.
 #
 
-import munch
-from openstackclient.identity import common as identity_common
-from osc_lib import exceptions as osc_exc
-from osc_lib import utils
-from oslo_utils import uuidutils
+from osc_lib import exceptions
 
-from octaviaclient.api import exceptions
-from octaviaclient.osc.v2 import constants
+from openstackclient.identity import common as identity_common
 
 
 def _map_attrs(args, source_attr_map):
@@ -63,62 +58,6 @@ def _map_attrs(args, source_attr_map):
     return res
 
 
-def _find_resource(list_funct, resource_name, root_tag, name, parent=None):
-    """Search for a resource by name and ID.
-
-    This function will search for a resource by both the name and ID,
-    returning the resource once it finds a match. If no match is found,
-    an exception will be raised.
-
-    :param list_funct: The resource list method to call during searches.
-    :param resource_name: The name of the resource type we are searching for.
-    :param root_tag: The root tag of the resource returned from the API.
-    :param name: The value we are searching for, a resource name or ID.
-    :param parent: The parent resource ID, when required.
-    :return: The resource found for the name or ID.
-    :raises osc_exc.CommandError: If more than one match or none are found.
-    """
-    if parent:
-        parent_args = [parent]
-    else:
-        parent_args = []
-    # Optimize the API call order if we got a UUID-like name or not
-    if uuidutils.is_uuid_like(name):
-        # Try by ID first
-        resource = list_funct(*parent_args, id=name)[root_tag]
-        if len(resource) == 1:
-            return resource[0]
-
-        # Try by name next
-        resource = list_funct(*parent_args, name=name)[root_tag]
-        if len(resource) == 1:
-            return resource[0]
-        if len(resource) > 1:
-            msg = ("{0} {1} found with name or ID of {2}. Please try "
-                   "again with UUID".format(len(resource), resource_name,
-                                            name))
-            raise osc_exc.CommandError(msg)
-    else:
-        # Try by name first
-        resource = list_funct(*parent_args, name=name)[root_tag]
-        if len(resource) == 1:
-            return resource[0]
-        if len(resource) > 1:
-            msg = ("{0} {1} found with name or ID of {2}. Please try "
-                   "again with UUID".format(len(resource), resource_name,
-                                            name))
-            raise osc_exc.CommandError(msg)
-
-        # Try by ID next
-        resource = list_funct(*parent_args, id=name)[root_tag]
-        if len(resource) == 1:
-            return resource[0]
-
-    # We didn't find what we were looking for, raise a consistent error.
-    msg = "Unable to locate {0} in {1}".format(name, resource_name)
-    raise osc_exc.CommandError(msg)
-
-
 def get_resource_id(resource, resource_name, name):
     """Converts a resource name into a UUID for consumption for the API
 
@@ -137,11 +76,6 @@ def get_resource_id(resource, resource_name, name):
             if name.lower() in ('none', 'null', 'void'):
                 return None
 
-        primary_key = 'id'
-        # Availability-zones don't have an id value
-        if resource_name == 'availability_zones':
-            primary_key = 'name'
-
         # Projects can be non-uuid so we need to account for this
         if resource_name == 'project':
             if name != 'non-uuid':
@@ -150,35 +84,38 @@ def get_resource_id(resource, resource_name, name):
                     name
                 ).id
                 return project_id
-            return 'non-uuid'
-
-        if resource_name == 'members':
-            member = _find_resource(resource, resource_name, 'members',
-                                    name['member_id'], parent=name['pool_id'])
-            return member.get('id')
-
-        if resource_name == 'l7rules':
-            l7rule = _find_resource(resource, resource_name, 'rules',
-                                    name['l7rule_id'],
-                                    parent=name['l7policy_id'])
-            return l7rule.get('id')
-
-        resource = _find_resource(resource, resource_name, resource_name, name)
-        return resource.get(primary_key)
-
-    except IndexError as e:
+            else:
+                return 'non-uuid'
+        elif resource_name == 'members':
+            names = [re for re in resource(name['pool_id'])['members']
+                     if re.get('id') == name['member_id']
+                     or re.get('name') == name['member_id']]
+            name = name['member_id']
+            if len(names) > 1:
+                msg = ("{0} {1} found with name or ID of {2}. Please try "
+                       "again with UUID".format(len(names), resource_name,
+                                                name))
+                raise exceptions.CommandError(msg)
+            else:
+                return names[0].get('id')
+        elif resource_name == 'l7rules':
+            names = [re for re in resource(name['l7policy_id'])['rules']
+                     if re.get('id') == name['l7rule_id']]
+            name = name['l7rule_id']
+            return names[0].get('id')
+        else:
+            names = [re for re in resource()[resource_name]
+                     if re.get('name') == name or re.get('id') == name]
+            if len(names) > 1:
+                msg = ("{0} {1} found with name or ID of {2}. Please try "
+                       "again with UUID".format(len(names), resource_name,
+                                                name))
+                raise exceptions.CommandError(msg)
+            else:
+                return names[0].get('id')
+    except IndexError:
         msg = "Unable to locate {0} in {1}".format(name, resource_name)
-        raise osc_exc.CommandError(msg) from e
-
-
-def add_tags_attr_map(attr_map):
-    tags_attr_map = {
-        'tags': ('tags', list),
-        'any_tags': ('tags-any', list),
-        'not_tags': ('not-tags', list),
-        'not_any_tags': ('not-tags-any', list),
-    }
-    attr_map.update(tags_attr_map)
+        raise exceptions.CommandError(msg)
 
 
 def get_loadbalancer_attrs(client_manager, parsed_args):
@@ -221,18 +158,8 @@ def get_loadbalancer_attrs(client_manager, parsed_args):
         ),
         'enable': ('admin_state_up', lambda x: True),
         'disable': ('admin_state_up', lambda x: False),
-        'cascade': ('cascade', lambda x: True),
-        'provisioning_status': ('provisioning_status', str),
-        'operating_status': ('operating_status', str),
-        'provider': ('provider', str),
-        'flavor': (
-            'flavor_id',
-            'flavors',
-            client_manager.load_balancer.flavor_list
-        ),
-        'availability_zone': ('availability_zone', str),
+        'cascade': ('cascade', lambda x: True)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -271,22 +198,8 @@ def get_listener_attrs(client_manager, parsed_args):
         'disable': ('admin_state_up', lambda x: False),
         'insert_headers': ('insert_headers', _format_kv),
         'default_tls_container_ref': ('default_tls_container_ref', str),
-        'sni_container_refs': ('sni_container_refs', list),
-        'timeout_client_data': ('timeout_client_data', int),
-        'timeout_member_connect': ('timeout_member_connect', int),
-        'timeout_member_data': ('timeout_member_data', int),
-        'timeout_tcp_inspect': ('timeout_tcp_inspect', int),
-        'client_ca_tls_container_ref': ('client_ca_tls_container_ref',
-                                        _format_str_if_need_treat_unset),
-        'client_authentication': ('client_authentication', str),
-        'client_crl_container_ref': ('client_crl_container_ref',
-                                     _format_str_if_need_treat_unset),
-        'allowed_cidrs': ('allowed_cidrs', list),
-        'tls_ciphers': ('tls_ciphers', str),
-        'tls_versions': ('tls_versions', list),
-        'alpn_protocols': ('alpn_protocols', list),
+        'sni_container_refs': ('sni_container_refs', list)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -322,21 +235,8 @@ def get_pool_attrs(client_manager, parsed_args):
         ),
         'session_persistence': ('session_persistence', _format_kv),
         'enable': ('admin_state_up', lambda x: True),
-        'disable': ('admin_state_up', lambda x: False),
-        'tls_container_ref': ('tls_container_ref',
-                              _format_str_if_need_treat_unset),
-        'ca_tls_container_ref': ('ca_tls_container_ref',
-                                 _format_str_if_need_treat_unset),
-        'crl_container_ref': ('crl_container_ref',
-                              _format_str_if_need_treat_unset),
-
-        'enable_tls': ('tls_enabled', lambda x: True),
-        'disable_tls': ('tls_enabled', lambda x: False),
-        'tls_ciphers': ('tls_ciphers', str),
-        'tls_versions': ('tls_versions', list),
-        'alpn_protocols': ('alpn_protocols', list),
+        'disable': ('admin_state_up', lambda x: False)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -365,8 +265,6 @@ def get_member_attrs(client_manager, parsed_args):
             'pool',
             client_manager.load_balancer.member_list
         ),
-        'enable_backup': ('backup', lambda x: True),
-        'disable_backup': ('backup', lambda x: False),
         'weight': ('weight', int),
         'subnet_id': (
             'subnet_id',
@@ -378,7 +276,6 @@ def get_member_attrs(client_manager, parsed_args):
         'enable': ('admin_state_up', lambda x: True),
         'disable': ('admin_state_up', lambda x: False),
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -391,8 +288,6 @@ def get_l7policy_attrs(client_manager, parsed_args):
         'name': ('name', str),
         'description': ('description', str),
         'redirect_url': ('redirect_url', str),
-        'redirect_http_code': ('redirect_http_code', int),
-        'redirect_prefix': ('redirect_prefix', str),
         'l7policy': (
             'l7policy_id',
             'l7policies',
@@ -418,7 +313,6 @@ def get_l7policy_attrs(client_manager, parsed_args):
         'enable': ('admin_state_up', lambda x: True),
         'disable': ('admin_state_up', lambda x: False)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -453,7 +347,6 @@ def get_l7rule_attrs(client_manager, parsed_args):
         'enable': ('admin_state_up', lambda x: True),
         'disable': ('admin_state_up', lambda x: False)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -488,11 +381,8 @@ def get_health_monitor_attrs(client_manager, parsed_args):
         'max_retries_down': ('max_retries_down', int),
         'url_path': ('url_path', str),
         'enable': ('admin_state_up', lambda x: True),
-        'disable': ('admin_state_up', lambda x: False),
-        'http_version': ('http_version', float),
-        'domain_name': ('domain_name', str)
+        'disable': ('admin_state_up', lambda x: False)
     }
-    add_tags_attr_map(attr_map)
 
     _attrs = vars(parsed_args)
     attrs = _map_attrs(_attrs, attr_map)
@@ -507,8 +397,6 @@ def get_quota_attrs(client_manager, parsed_args):
         'load_balancer': ('load_balancer', int),
         'member': ('member', int),
         'pool': ('pool', int),
-        'l7policy': ('l7policy', int),
-        'l7rule': ('l7rule', int),
         'project': (
             'project_id',
             'project',
@@ -542,113 +430,15 @@ def get_amphora_attrs(client_manager, parsed_args):
     return _map_attrs(vars(parsed_args), attr_map)
 
 
-def get_provider_attrs(parsed_args):
-    attr_map = {
-        'provider': ('provider_name', str),
-        'description': ('description', str),
-        'flavor': ('flavor', bool),
-        'availability_zone': ('availability_zone', bool),
-    }
-
-    return _map_attrs(vars(parsed_args), attr_map)
-
-
-def get_flavor_attrs(client_manager, parsed_args):
-    attr_map = {
-        'name': ('name', str),
-        'flavor': (
-            'flavor_id',
-            'flavors',
-            client_manager.load_balancer.flavor_list,
-        ),
-        'flavorprofile': (
-            'flavor_profile_id',
-            'flavorprofiles',
-            client_manager.load_balancer.flavorprofile_list,
-        ),
-        'enable': ('enabled', lambda x: True),
-        'disable': ('enabled', lambda x: False),
-        'description': ('description', str),
-    }
-
-    _attrs = vars(parsed_args)
-    attrs = _map_attrs(_attrs, attr_map)
-
-    return attrs
-
-
-def get_flavorprofile_attrs(client_manager, parsed_args):
-    attr_map = {
-        'name': ('name', str),
-        'flavorprofile': (
-            'flavorprofile_id',
-            'flavorprofiles',
-            client_manager.load_balancer.flavorprofile_list,
-        ),
-        'provider': ('provider_name', str),
-        'flavor_data': ('flavor_data', str),
-    }
-
-    _attrs = vars(parsed_args)
-    attrs = _map_attrs(_attrs, attr_map)
-
-    return attrs
-
-
-def get_availabilityzone_attrs(client_manager, parsed_args):
-    attr_map = {
-        'name': ('name', str),
-        'availabilityzone': (
-            'availabilityzone_name',
-            'availability_zones',
-            client_manager.load_balancer.availabilityzone_list,
-        ),
-        'availabilityzoneprofile': (
-            'availability_zone_profile_id',
-            'availability_zone_profiles',
-            client_manager.load_balancer.availabilityzoneprofile_list,
-        ),
-        'enable': ('enabled', lambda x: True),
-        'disable': ('enabled', lambda x: False),
-        'description': ('description', str),
-    }
-
-    _attrs = vars(parsed_args)
-    attrs = _map_attrs(_attrs, attr_map)
-
-    return attrs
-
-
-def get_availabilityzoneprofile_attrs(client_manager, parsed_args):
-    attr_map = {
-        'name': ('name', str),
-        'availabilityzoneprofile': (
-            'availability_zone_profile_id',
-            'availability_zone_profiles',
-            client_manager.load_balancer.availabilityzoneprofile_list,
-        ),
-        'provider': ('provider_name', str),
-        'availability_zone_data': ('availability_zone_data', str),
-    }
-
-    _attrs = vars(parsed_args)
-    attrs = _map_attrs(_attrs, attr_map)
-
-    return attrs
-
-
 def format_list(data):
     return '\n'.join(i['id'] for i in data)
-
-
-def format_list_flat(data):
-    return '\n'.join(i for i in data)
 
 
 def format_hash(data):
     if data:
         return '\n'.join('{}={}'.format(k, v) for k, v in data.items())
-    return None
+    else:
+        return None
 
 
 def _format_kv(data):
@@ -659,75 +449,3 @@ def _format_kv(data):
         formatted_kv[k] = v
 
     return formatted_kv
-
-
-def _format_str_if_need_treat_unset(data):
-    if data.lower() in ('none', 'null', 'void'):
-        return None
-    return str(data)
-
-
-def get_unsets(parsed_args):
-    unsets = {}
-    for arg, value in vars(parsed_args).items():
-        if value and arg == 'tags':
-            unsets[arg] = value
-        elif value is True and arg not in ('wait', 'all_tag'):
-            unsets[arg] = None
-    return unsets
-
-
-def wait_for_active(status_f, res_id):
-    success = utils.wait_for_status(
-        status_f=lambda x: munch.Munch(status_f(x)),
-        res_id=res_id,
-        status_field=constants.PROVISIONING_STATUS,
-        sleep_time=3
-    )
-    if not success:
-        raise exceptions.OctaviaClientException(
-            code="n/a",
-            message="The resource did not successfully reach ACTIVE status.")
-
-
-def wait_for_delete(status_f, res_id,
-                    status_field=constants.PROVISIONING_STATUS):
-    class Getter(object):
-        @staticmethod
-        def get(id):
-            return munch.Munch(status_f(id))
-
-    try:
-        success = utils.wait_for_delete(
-            manager=Getter,
-            res_id=res_id,
-            status_field=status_field,
-            sleep_time=3
-        )
-        if not success:
-            raise exceptions.OctaviaClientException(
-                code="n/a",
-                message="The resource could not be successfully deleted.")
-    except exceptions.OctaviaClientException as e:
-        if e.code != 404:
-            raise
-
-
-def set_tags_for_set(resource_get, resource_id, attrs, clear_tags=False):
-    if attrs.get('tags'):
-        resource = resource_get(resource_id)
-        tags = set([] if clear_tags else resource['tags'])
-        tags |= set(attrs['tags'])
-        attrs['tags'] = list(tags)
-    elif clear_tags:
-        attrs['tags'] = []
-
-
-def set_tags_for_unset(resource_get, resource_id, attrs, clear_tags=False):
-    if clear_tags:
-        attrs['tags'] = []
-    elif attrs.get('tags'):
-        resource = resource_get(resource_id)
-        tags = set(resource['tags'])
-        tags -= set(attrs['tags'])
-        attrs['tags'] = list(tags)

@@ -1,11 +1,13 @@
+========================
 Team and repository tags
 ========================
 
-.. image:: https://governance.openstack.org/tc/badges/python-octaviaclient.svg
-    :target: https://governance.openstack.org/tc/reference/tags/index.html
+.. image:: https://governance.openstack.org/badges/python-octaviaclient.svg
+    :target: https://governance.openstack.org/reference/tags/index.html
 
 .. Change things from this point on
 
+====================
 python-octaviaclient
 ====================
 
@@ -22,31 +24,24 @@ https://docs.openstack.org/python-openstackclient/latest/
 
 * Free software: Apache license
 * Documentation: https://docs.openstack.org/octavia/latest/
-* Source: https://opendev.org/openstack/python-octaviaclient
-* Release notes: https://docs.openstack.org/releasenotes/python-octaviaclient/
-* Bugs: https://storyboard.openstack.org/#!/project/911
+* Source: http://git.openstack.org/cgit/openstack/python-octaviaclient
+* Bugs: http://bugs.launchpad.net/octavia
 
 Getting Started
 ===============
 
-.. note:: This is an OpenStack Client plugin. The ``python-openstackclient``
+.. note:: This is an OpenStack Client plugin.  The ``python-openstackclient``
           project should be installed to use this plugin.
 
-Octavia client can be installed from PyPI using pip
-
-.. code-block:: bash
+Octavia client can be installed from PyPI using pip::
 
     pip install python-octaviaclient
 
 If you want to make changes to the Octavia client for testing and contribution,
-make any changes and then run
-
-.. code-block:: bash
+make any changes and then run::
 
     python setup.py develop
 
-or
-
-.. code-block:: bash
+or::
 
     pip install -e .

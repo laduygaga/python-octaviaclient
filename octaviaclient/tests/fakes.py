@@ -12,14 +12,15 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 #
-import copy
-import sys
-from unittest import mock
 
-from oslo_serialization import jsonutils
+import copy
+import json
+import mock
+import sys
 
 from keystoneauth1 import fixture
 import requests
+import six
 
 
 AUTH_TOKEN = "foobar"
@@ -234,15 +235,15 @@ class FakeResponse(requests.Response):
 
     def __init__(self, headers=None, status_code=200,
                  data=None, encoding=None):
-        super().__init__()
+        super(FakeResponse, self).__init__()
 
         headers = headers or {}
 
         self.status_code = status_code
 
         self.headers.update(headers)
-        self._content = jsonutils.dumps(data)
-        if not isinstance(self._content, bytes):
+        self._content = json.dumps(data)
+        if not isinstance(self._content, six.binary_type):
             self._content = self._content.encode()
 
 

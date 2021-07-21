@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Added TLS versions and ciphers unset to listeners and pools.

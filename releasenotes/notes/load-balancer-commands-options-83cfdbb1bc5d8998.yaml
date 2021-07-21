@@ -1,5 +1,0 @@
----
-features:
-  - Add the following options "--vip-network-id", "--vip-subnet-id",
-    "--vip-qos-policy-id", "--vip-port-id", "--provisioning-status",
-    "--operating-status", "--provider" to "load balancer list" command.

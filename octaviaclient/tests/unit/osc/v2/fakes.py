@@ -10,8 +10,9 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 #
+
 import copy
-from unittest import mock
+import mock
 
 from osc_lib.tests import utils
 
@@ -30,7 +31,7 @@ class FakeOctaviaClient(object):
 class TestOctaviaClient(utils.TestCommand):
 
     def setUp(self):
-        super().setUp()
+        super(TestOctaviaClient, self).setUp()
         self.app.client_manager.load_balancer = FakeOctaviaClient(
             endpoint=fakes.AUTH_URL,
             token=fakes.AUTH_TOKEN,

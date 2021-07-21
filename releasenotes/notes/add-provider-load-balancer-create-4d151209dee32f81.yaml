@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Added --provider as optional argument to load balancer create.

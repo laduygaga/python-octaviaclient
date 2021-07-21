@@ -1,6 +1,0 @@
----
-features:
-  - |
-    Commands that can cause loadbalancers to enter an immutable status (Create,
-    Update, and Delete operations) now have a ``--wait`` argument. If set, the
-    client will continue to poll until the status is no longer immutable.

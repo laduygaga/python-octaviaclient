@@ -1,4 +1,0 @@
----
-features:
-  - Add REDIRECT_PREFIX action for L7 Policy in l7policy create,
-    and set command

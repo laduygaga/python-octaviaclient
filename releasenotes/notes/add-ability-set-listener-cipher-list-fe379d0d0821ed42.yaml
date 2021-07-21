@@ -1,6 +1,0 @@
----
-features:
-  - |
-    Added an optional  Argument ``--tls-ciphers``
-    for passing OpenSSL cipher strings when creating
-    a new listener.

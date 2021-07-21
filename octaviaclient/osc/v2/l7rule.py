@@ -1,6 +1,4 @@
 #   Copyright 2017 GoDaddy
-#   Copyright 2019 Red Hat, Inc. All rights reserved.
-#
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
 #   a copy of the License at
@@ -16,29 +14,23 @@
 
 """L7rule action implementation"""
 
-import functools
-
 from cliff import lister
 from osc_lib.command import command
-from osc_lib import exceptions
 from osc_lib import utils
-from osc_lib.utils import tags as _tag
-from oslo_utils import uuidutils
 
 from octaviaclient.osc.v2 import constants as const
 from octaviaclient.osc.v2 import utils as v2_utils
 from octaviaclient.osc.v2 import validate
 
 COMPARE_TYPES = ['REGEX', 'EQUAL_TO', 'CONTAINS', 'ENDS_WITH', 'STARTS_WITH']
-TYPES = ['FILE_TYPE', 'PATH', 'COOKIE', 'HOST_NAME', 'HEADER',
-         'SSL_CONN_HAS_CERT', 'SSL_VERIFY_RESULT', 'SSL_DN_FIELD']
+TYPES = ['FILE_TYPE', 'PATH', 'COOKIE', 'HOST_NAME', 'HEADER']
 
 
 class CreateL7Rule(command.ShowOne):
     """Create a l7rule"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(CreateL7Rule, self).get_parser(prog_name)
         parser.add_argument(
             'l7policy',
             metavar='<l7policy>',
@@ -90,14 +82,6 @@ class CreateL7Rule(command.ShowOne):
             default=None,
             help="Disable l7rule."
         )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_create(
-            parser, 'l7rule')
 
         return parser
 
@@ -114,33 +98,15 @@ class CreateL7Rule(command.ShowOne):
             json=body
         )
 
-        if parsed_args.wait:
-            l7policy = self.app.client_manager.load_balancer.l7policy_show(
-                l7policy_id)
-            listener = self.app.client_manager.load_balancer.listener_show(
-                l7policy['listener_id'])
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=listener['loadbalancers'][0]['id']
-            )
-            data = {
-                'rule': (
-                    self.app.client_manager.load_balancer.l7rule_show(
-                        l7policy_id, data['rule']['id']))
-            }
-
-        formatters = {'tags': v2_utils.format_list_flat}
-
         return (rows, (utils.get_dict_properties(
-            data['rule'], rows, formatters=formatters)))
+            data['rule'], rows, formatters={})))
 
 
 class DeleteL7Rule(command.Command):
     """Delete a l7rule"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(DeleteL7Rule, self).get_parser(prog_name)
 
         parser.add_argument(
             'l7policy',
@@ -151,11 +117,6 @@ class DeleteL7Rule(command.Command):
             'l7rule',
             metavar="<rule_id>",
             help="l7rule to delete."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
         )
 
         return parser
@@ -168,30 +129,18 @@ class DeleteL7Rule(command.Command):
             l7policy_id=attrs['l7policy_id']
         )
 
-        if parsed_args.wait:
-            l7rule_show = functools.partial(
-                self.app.client_manager.load_balancer.l7rule_show,
-                attrs['l7rule_id']
-            )
-            v2_utils.wait_for_delete(
-                status_f=l7rule_show,
-                res_id=attrs['l7policy_id']
-            )
-
 
 class ListL7Rule(lister.Lister):
     """List l7rules for l7policy"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ListL7Rule, self).get_parser(prog_name)
 
         parser.add_argument(
             'l7policy',
             metavar='<l7policy>',
             help='l7policy to list rules for (name or ID).'
         )
-
-        _tag.add_tag_filtering_option_to_parser(parser, 'l7rule')
 
         return parser
 
@@ -200,7 +149,7 @@ class ListL7Rule(lister.Lister):
         attrs = v2_utils.get_l7rule_attrs(self.app.client_manager, parsed_args)
 
         data = self.app.client_manager.load_balancer.l7rule_list(
-            **attrs
+            l7policy_id=attrs['l7policy_id']
         )
 
         return (columns,
@@ -212,7 +161,7 @@ class ShowL7Rule(command.ShowOne):
     """Show the details of a single l7rule"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowL7Rule, self).get_parser(prog_name)
 
         parser.add_argument(
             'l7policy',
@@ -229,33 +178,22 @@ class ShowL7Rule(command.ShowOne):
 
     def take_action(self, parsed_args):
         rows = const.L7RULE_ROWS
-        data = None
-        if (uuidutils.is_uuid_like(parsed_args.l7policy) and
-                uuidutils.is_uuid_like(parsed_args.l7rule)):
-            try:
-                data = self.app.client_manager.load_balancer.l7rule_show(
-                    l7rule_id=parsed_args.l7rule,
-                    l7policy_id=parsed_args.l7policy)
-            except exceptions.NotFound:
-                pass
-        if data is None:
-            attrs = v2_utils.get_l7rule_attrs(self.app.client_manager,
-                                              parsed_args)
-            data = self.app.client_manager.load_balancer.l7rule_show(
-                l7rule_id=attrs['l7rule_id'],
-                l7policy_id=attrs['l7policy_id']
-            )
-        formatters = {'tags': v2_utils.format_list_flat}
+
+        attrs = v2_utils.get_l7rule_attrs(self.app.client_manager, parsed_args)
+        data = self.app.client_manager.load_balancer.l7rule_show(
+            l7rule_id=attrs['l7rule_id'],
+            l7policy_id=attrs['l7policy_id']
+        )
 
         return (rows, (utils.get_dict_properties(
-            data, rows, formatters=formatters)))
+            data, rows, formatters={})))
 
 
 class SetL7Rule(command.Command):
     """Update a l7rule"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(SetL7Rule, self).get_parser(prog_name)
 
         parser.add_argument(
             'l7policy',
@@ -310,13 +248,6 @@ class SetL7Rule(command.Command):
             default=None,
             help="Disable l7rule."
         )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_set(parser, 'l7rule')
 
         return parser
 
@@ -327,15 +258,6 @@ class SetL7Rule(command.Command):
         l7policy_id = attrs.pop('l7policy_id')
         l7rule_id = attrs.pop('l7rule_id')
 
-        # l7rule_id is the first argument in l7rule_show
-        l7rule_show = functools.partial(
-            self.app.client_manager.load_balancer.l7rule_show,
-            l7rule_id
-        )
-
-        v2_utils.set_tags_for_set(
-            l7rule_show, l7policy_id, attrs, clear_tags=parsed_args.no_tag)
-
         body = {'rule': attrs}
 
         self.app.client_manager.load_balancer.l7rule_set(
@@ -343,74 +265,3 @@ class SetL7Rule(command.Command):
             l7policy_id=l7policy_id,
             json=body
         )
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=l7rule_show,
-                res_id=l7policy_id
-            )
-
-
-class UnsetL7Rule(command.Command):
-    """Clear l7rule settings"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'l7policy',
-            metavar='<l7policy>',
-            help="L7policy to update (name or ID)."
-        )
-        parser.add_argument(
-            'l7rule_id',
-            metavar='<l7rule_id>',
-            help="l7rule to update."
-        )
-        parser.add_argument(
-            '--invert',
-            action='store_true',
-            help="Reset the l7rule invert to the API default."
-        )
-        parser.add_argument(
-            '--key',
-            action='store_true',
-            help="Clear the l7rule key."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-        _tag.add_tag_option_to_parser_for_unset(parser, 'l7rule')
-
-        return parser
-
-    def take_action(self, parsed_args):
-        unset_args = v2_utils.get_unsets(parsed_args)
-        if not unset_args and not parsed_args.all_tag:
-            return
-
-        policy_id = v2_utils.get_resource_id(
-            self.app.client_manager.load_balancer.l7policy_list,
-            'l7policies', parsed_args.l7policy)
-
-        l7rule_show = functools.partial(
-            self.app.client_manager.load_balancer.l7rule_show,
-            parsed_args.l7rule_id
-        )
-
-        v2_utils.set_tags_for_unset(
-            l7rule_show, policy_id, unset_args,
-            clear_tags=parsed_args.all_tag)
-
-        body = {'rule': unset_args}
-
-        self.app.client_manager.load_balancer.l7rule_set(
-            l7policy_id=policy_id, l7rule_id=parsed_args.l7rule_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=l7rule_show,
-                res_id=policy_id,
-            )

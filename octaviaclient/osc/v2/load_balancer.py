@@ -17,18 +17,9 @@ from cliff import lister
 from osc_lib.command import command
 from osc_lib import exceptions
 from osc_lib import utils
-from osc_lib.utils import tags as _tag
-from oslo_serialization import jsonutils
-from oslo_utils import uuidutils
 
 from octaviaclient.osc.v2 import constants as const
 from octaviaclient.osc.v2 import utils as v2_utils
-
-PROVISIONING_STATUS = ['ACTIVE', 'DELETED', 'ERROR', 'PENDING_CREATE',
-                       'PENDING_UPDATE', 'PENDING_DELETE']
-
-OPERATING_STATUS = ['ONLINE', 'DRAINING', 'OFFLINE', 'DEGRADED', 'ERROR',
-                    'NO_MONITOR']
 
 
 class CreateLoadBalancer(command.ShowOne):
@@ -47,7 +38,7 @@ class CreateLoadBalancer(command.ShowOne):
             raise exceptions.CommandError(msg)
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(CreateLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             '--name',
@@ -96,19 +87,6 @@ class CreateLoadBalancer(command.ShowOne):
             help="Project for the load balancer (name or ID)."
         )
 
-        parser.add_argument(
-            '--provider',
-            metavar='<provider>',
-            help="Provider name for the load balancer."
-        )
-
-        parser.add_argument(
-            '--availability-zone',
-            metavar='<availability_zone>',
-            default=None,
-            help="Availability zone for the load balancer."
-        )
-
         admin_group = parser.add_mutually_exclusive_group()
         admin_group.add_argument(
             '--enable',
@@ -122,19 +100,6 @@ class CreateLoadBalancer(command.ShowOne):
             default=None,
             help="Disable load balancer."
         )
-        parser.add_argument(
-            '--flavor',
-            metavar='<flavor>',
-            help="The name or ID of the flavor for the load balancer."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_create(
-            parser, 'load balancer')
 
         return parser
 
@@ -148,23 +113,10 @@ class CreateLoadBalancer(command.ShowOne):
         data = self.app.client_manager.load_balancer.load_balancer_create(
             json=body)
 
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=data['loadbalancer']['id']
-            )
-            data = {
-                'loadbalancer': (
-                    self.app.client_manager.load_balancer.load_balancer_show(
-                        data['loadbalancer']['id']))
-            }
-
         formatters = {
             'listeners': v2_utils.format_list,
             'pools': v2_utils.format_list,
-            'l7policies': v2_utils.format_list,
-            'tags': v2_utils.format_list_flat
+            'l7policies': v2_utils.format_list
         }
 
         return (rows,
@@ -176,12 +128,12 @@ class DeleteLoadBalancer(command.Command):
     """Delete a load balancer"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(DeleteLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             'loadbalancer',
             metavar='<load_balancer>',
-            help="Load balancers to delete (name or ID)."
+            help="Load balancers to delete (name or ID)"
         )
         parser.add_argument(
             '--cascade',
@@ -189,11 +141,6 @@ class DeleteLoadBalancer(command.Command):
             default=None,
             help="Cascade the delete to all child elements of the load "
                  "balancer."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
         )
 
         return parser
@@ -206,29 +153,17 @@ class DeleteLoadBalancer(command.Command):
         self.app.client_manager.load_balancer.load_balancer_delete(
             lb_id=lb_id, **attrs)
 
-        if parsed_args.wait:
-            v2_utils.wait_for_delete(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=lb_id
-            )
-
 
 class FailoverLoadBalancer(command.Command):
     """Trigger load balancer failover"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(FailoverLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             'loadbalancer',
             metavar='<load_balancer>',
             help="Name or UUID of the load balancer."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
         )
 
         return parser
@@ -236,23 +171,15 @@ class FailoverLoadBalancer(command.Command):
     def take_action(self, parsed_args):
         attrs = v2_utils.get_loadbalancer_attrs(self.app.client_manager,
                                                 parsed_args)
-        lb_id = attrs.pop('loadbalancer_id')
         self.app.client_manager.load_balancer.load_balancer_failover(
-            lb_id=lb_id)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=lb_id
-            )
+            lb_id=attrs.pop('loadbalancer_id'))
 
 
 class ListLoadBalancer(lister.Lister):
     """List load balancers"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ListLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             '--name',
@@ -277,61 +204,6 @@ class ListLoadBalancer(lister.Lister):
             metavar='<project-id>',
             help="List load balancers according to their project (name or ID)."
         )
-        parser.add_argument(
-            '--vip-network-id',
-            metavar='<vip_network_id>',
-            help="List load balancers according to their VIP network "
-                 "(name or ID)."
-        )
-        parser.add_argument(
-            '--vip-subnet-id',
-            metavar='<vip_subnet_id>',
-            help="List load balancers according to their VIP subnet "
-                 "(name or ID)."
-        )
-        parser.add_argument(
-            '--vip-qos-policy-id',
-            metavar='<vip_qos_policy_id>',
-            help="List load balancers according to their VIP Qos policy "
-                 "(name or ID)."
-        )
-        parser.add_argument(
-            '--vip-port-id',
-            metavar='<vip_port_id>',
-            help="List load balancers according to their VIP port "
-                 "(name or ID)."
-        )
-        parser.add_argument(
-            '--provisioning-status',
-            metavar='{' + ','.join(PROVISIONING_STATUS) + '}',
-            choices=PROVISIONING_STATUS,
-            type=lambda s: s.upper(),
-            help="List load balancers according to their provisioning status."
-        )
-        parser.add_argument(
-            '--operating-status',
-            metavar='{' + ','.join(OPERATING_STATUS) + '}',
-            choices=OPERATING_STATUS,
-            type=lambda s: s.upper(),
-            help="List load balancers according to their operating status."
-        )
-        parser.add_argument(
-            '--provider',
-            metavar='<provider>',
-            help="List load balancers according to their provider."
-        )
-        parser.add_argument(
-            '--flavor',
-            metavar='<flavor>',
-            help="List load balancers according to their flavor."
-        )
-        parser.add_argument(
-            '--availability-zone',
-            metavar='<availability_zone>',
-            help="List load balancers according to their availability zone."
-        )
-
-        _tag.add_tag_filtering_option_to_parser(parser, 'load balancer')
 
         return parser
 
@@ -354,7 +226,7 @@ class ShowLoadBalancer(command.ShowOne):
     """Show the details for a single load balancer"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             'loadbalancer',
@@ -366,29 +238,18 @@ class ShowLoadBalancer(command.ShowOne):
 
     def take_action(self, parsed_args):
         rows = const.LOAD_BALANCER_ROWS
-        data = None
+        attrs = v2_utils.get_loadbalancer_attrs(self.app.client_manager,
+                                                parsed_args)
+        lb_id = attrs.pop('loadbalancer_id')
 
-        if uuidutils.is_uuid_like(parsed_args.loadbalancer):
-            try:
-                data = (
-                    self.app.client_manager.load_balancer.load_balancer_show(
-                        lb_id=parsed_args.loadbalancer))
-            except exceptions.NotFound:
-                pass
-
-        if data is None:
-            attrs = v2_utils.get_loadbalancer_attrs(
-                self.app.client_manager, parsed_args)
-            lb_id = attrs.pop('loadbalancer_id')
-
-            data = self.app.client_manager.load_balancer.load_balancer_show(
-                lb_id=lb_id)
+        data = self.app.client_manager.load_balancer.load_balancer_show(
+            lb_id=lb_id
+        )
 
         formatters = {
             'listeners': v2_utils.format_list,
             'pools': v2_utils.format_list,
-            'l7policies': v2_utils.format_list,
-            'tags': v2_utils.format_list_flat
+            'l7policies': v2_utils.format_list
         }
 
         return (rows, (utils.get_dict_properties(
@@ -399,7 +260,7 @@ class SetLoadBalancer(command.Command):
     """Update a load balancer"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(SetLoadBalancer, self).get_parser(prog_name)
 
         parser.add_argument(
             'loadbalancer',
@@ -435,13 +296,6 @@ class SetLoadBalancer(command.Command):
             default=None,
             help="Disable load balancer."
         )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_set(parser, 'load balancer')
 
         return parser
 
@@ -449,91 +303,17 @@ class SetLoadBalancer(command.Command):
         attrs = v2_utils.get_loadbalancer_attrs(self.app.client_manager,
                                                 parsed_args)
         lb_id = attrs.pop('loadbalancer_id')
-
-        v2_utils.set_tags_for_set(
-            self.app.client_manager.load_balancer.load_balancer_show,
-            lb_id, attrs, clear_tags=parsed_args.no_tag)
-
         body = {'loadbalancer': attrs}
 
         self.app.client_manager.load_balancer.load_balancer_set(
             lb_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=lb_id
-            )
-
-
-class UnsetLoadBalancer(command.Command):
-    """Clear load balancer settings"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'loadbalancer',
-            metavar='<load_balancer>',
-            help='Name or UUID of the load balancer to update.'
-        )
-        parser.add_argument(
-            '--name',
-            action='store_true',
-            help="Clear the load balancer name."
-        )
-        parser.add_argument(
-            '--description',
-            action='store_true',
-            help="Clear the load balancer description."
-        )
-        parser.add_argument(
-            '--vip-qos-policy-id',
-            action='store_true',
-            help="Clear the load balancer QoS policy.",
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_unset(parser, 'load balancer')
-
-        return parser
-
-    def take_action(self, parsed_args):
-        unset_args = v2_utils.get_unsets(parsed_args)
-        if not unset_args and not parsed_args.all_tag:
-            return
-
-        lb_id = v2_utils.get_resource_id(
-            self.app.client_manager.load_balancer.load_balancer_list,
-            'loadbalancers', parsed_args.loadbalancer)
-
-        v2_utils.set_tags_for_unset(
-            self.app.client_manager.load_balancer.load_balancer_show,
-            lb_id, unset_args, clear_tags=parsed_args.all_tag)
-
-        body = {'loadbalancer': unset_args}
-
-        self.app.client_manager.load_balancer.load_balancer_set(
-            lb_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=lb_id
-            )
 
 
 class ShowLoadBalancerStats(command.ShowOne):
     """Shows the current statistics for a load balancer"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowLoadBalancerStats, self).get_parser(prog_name)
 
         parser.add_argument(
             'loadbalancer',
@@ -555,29 +335,3 @@ class ShowLoadBalancerStats(command.ShowOne):
 
         return (rows, (utils.get_dict_properties(
             data['stats'], rows, formatters={})))
-
-
-class ShowLoadBalancerStatus(command.Command):
-    """Display load balancer status tree in json format"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'loadbalancer',
-            metavar='<load_balancer>',
-            help="Name or UUID of the load balancer."
-        )
-
-        return parser
-
-    def take_action(self, parsed_args):
-        attrs = v2_utils.get_loadbalancer_attrs(self.app.client_manager,
-                                                parsed_args)
-        lb_id = attrs.pop('loadbalancer_id')
-
-        data = self.app.client_manager.load_balancer.load_balancer_status_show(
-            lb_id=lb_id
-        )
-        res = data.get('statuses', {})
-        print(jsonutils.dumps(res, indent=4))

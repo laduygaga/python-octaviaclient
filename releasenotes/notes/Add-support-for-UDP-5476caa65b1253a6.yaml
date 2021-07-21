@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Adds client support for UDP protocol load balancers.

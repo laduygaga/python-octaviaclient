@@ -1,5 +1,4 @@
 #   Copyright 2017 GoDaddy
-#   Copyright 2019 Red Hat, Inc. All rights reserved.
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
 #   a copy of the License at
@@ -17,25 +16,20 @@
 
 from cliff import lister
 from osc_lib.command import command
-from osc_lib import exceptions
 from osc_lib import utils
-from osc_lib.utils import tags as _tag
-from oslo_utils import uuidutils
 
 from octaviaclient.osc.v2 import constants as const
 from octaviaclient.osc.v2 import utils as v2_utils
 
-PROTOCOL_CHOICES = ['TCP', 'HTTP', 'HTTPS', 'TERMINATED_HTTPS', 'PROXY',
-                    'PROXYV2', 'UDP', 'SCTP']
-ALGORITHM_CHOICES = ['SOURCE_IP', 'ROUND_ROBIN', 'LEAST_CONNECTIONS',
-                     'SOURCE_IP_PORT']
+PROTOCOL_CHOICES = ['TCP', 'HTTP', 'HTTPS', 'TERMINATED_HTTPS', 'PROXY']
+ALGORITHM_CHOICES = ['SOURCE_IP', 'ROUND_ROBIN', 'LEAST_CONNECTIONS']
 
 
 class CreatePool(command.ShowOne):
     """Create a pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(CreatePool, self).get_parser(prog_name)
 
         parser.add_argument(
             '--name',
@@ -64,7 +58,7 @@ class CreatePool(command.ShowOne):
         parent_group.add_argument(
             '--loadbalancer',
             metavar='<load_balancer>',
-            help="Load balancer to add the pool to (name or ID)."
+            help="Load balncer to add the pool to (name or ID)"
         )
         parser.add_argument(
             '--session-persistence',
@@ -92,72 +86,6 @@ class CreatePool(command.ShowOne):
             default=None,
             help="Disable pool."
         )
-        parser.add_argument(
-            '--tls-container-ref',
-            metavar='<container-ref>',
-            help="The reference to the key manager service secrets container "
-                 "containing the certificate and key for ``tls_enabled`` "
-                 "pools to re-encrpt the traffic to backend member servers."
-        )
-        parser.add_argument(
-            '--ca-tls-container-ref',
-            metavar='<ca_tls_container_ref>',
-            help="The reference to the key manager service secrets container "
-                 "containing the CA certificate for ``tls_enabled`` pools "
-                 "to check the backend member servers certificates."
-        )
-        parser.add_argument(
-            '--crl-container-ref',
-            metavar='<crl_container_ref>',
-            help="The reference to the key manager service secrets container "
-                 "containting the CA revocation list file for ``tls_enabled`` "
-                 "pools to validate the backend member servers certificates."
-        )
-        tls_enable = parser.add_mutually_exclusive_group()
-        tls_enable.add_argument(
-            '--enable-tls',
-            action='store_true',
-            default=None,
-            help="Enable backend member re-encryption."
-        )
-        tls_enable.add_argument(
-            '--disable-tls',
-            action='store_true',
-            default=None,
-            help="Disable backend member re-encryption."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-        parser.add_argument(
-            '--tls-ciphers',
-            metavar='<tls_ciphers>',
-            help="Set the TLS ciphers to be used by the pool "
-                 "in OpenSSL cipher string format."
-        )
-        parser.add_argument(
-            '--tls-version',
-            dest='tls_versions',
-            metavar='<tls_versions>',
-            nargs='?',
-            action='append',
-            help="Set the TLS protocol version to be used "
-                 "by the pool (can be set multiple times)."
-        )
-        parser.add_argument(
-            '--alpn-protocol',
-            dest='alpn_protocols',
-            metavar='<alpn_protocols>',
-            nargs='?',
-            action='append',
-            help="Set the ALPN protocol to be used "
-                 "by the pool (can be set multiple times)."
-        )
-
-        _tag.add_tag_option_to_parser_for_create(
-            parser, 'pool')
 
         return parser
 
@@ -168,45 +96,25 @@ class CreatePool(command.ShowOne):
         body = {"pool": attrs}
         data = self.app.client_manager.load_balancer.pool_create(
             json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=data['pool']['loadbalancers'][0]['id']
-            )
-            data = {
-                'pool': (
-                    self.app.client_manager.load_balancer.pool_show(
-                        data['pool']['id']))
-            }
-
         formatters = {'loadbalancers': v2_utils.format_list,
                       'members': v2_utils.format_list,
                       'listeners': v2_utils.format_list,
-                      'session_persistence': v2_utils.format_hash,
-                      'tags': v2_utils.format_list_flat}
+                      'session_persistence': v2_utils.format_hash}
 
         return (rows, (utils.get_dict_properties(
-            data['pool'], rows, formatters=formatters,
-            mixed_case_fields=['enable-tls'])))
+            data['pool'], rows, formatters=formatters)))
 
 
 class DeletePool(command.Command):
     """Delete a pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(DeletePool, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
             metavar="<pool>",
             help="Pool to delete (name or ID)."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
         )
 
         return parser
@@ -217,26 +125,18 @@ class DeletePool(command.Command):
         self.app.client_manager.load_balancer.pool_delete(
             pool_id=pool_id)
 
-        if parsed_args.wait:
-            v2_utils.wait_for_delete(
-                status_f=self.app.client_manager.load_balancer.pool_show,
-                res_id=pool_id
-            )
-
 
 class ListPool(lister.Lister):
     """List pools"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ListPool, self).get_parser(prog_name)
 
         parser.add_argument(
             '--loadbalancer',
             metavar='<loadbalancer>',
             help="Filter by load balancer (name or ID).",
         )
-
-        _tag.add_tag_filtering_option_to_parser(parser, 'pool')
 
         return parser
 
@@ -257,7 +157,7 @@ class ShowPool(command.ShowOne):
     """Show the details of a single pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowPool, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -269,37 +169,27 @@ class ShowPool(command.ShowOne):
 
     def take_action(self, parsed_args):
         rows = const.POOL_ROWS
-        data = None
-        if uuidutils.is_uuid_like(parsed_args.pool):
-            try:
-                data = self.app.client_manager.load_balancer.pool_show(
-                    pool_id=parsed_args.pool)
-            except exceptions.NotFound:
-                pass
-        if data is None:
-            attrs = v2_utils.get_pool_attrs(self.app.client_manager,
-                                            parsed_args)
-            pool_id = attrs.pop('pool_id')
 
-            data = self.app.client_manager.load_balancer.pool_show(
-                pool_id=pool_id,
-            )
+        attrs = v2_utils.get_pool_attrs(self.app.client_manager, parsed_args)
+        pool_id = attrs.pop('pool_id')
+
+        data = self.app.client_manager.load_balancer.pool_show(
+            pool_id=pool_id,
+        )
         formatters = {'loadbalancers': v2_utils.format_list,
                       'members': v2_utils.format_list,
                       'listeners': v2_utils.format_list,
-                      'session_persistence': v2_utils.format_hash,
-                      'tags': v2_utils.format_list_flat}
+                      'session_persistence': v2_utils.format_hash}
 
         return (rows, (utils.get_dict_properties(
-            data, rows, formatters=formatters,
-            mixed_case_fields=['enable-tls'])))
+            data, rows, formatters=formatters)))
 
 
 class SetPool(command.Command):
     """Update a pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(SetPool, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -341,73 +231,6 @@ class SetPool(command.Command):
             default=None,
             help="Disable pool."
         )
-        parser.add_argument(
-            '--tls-container-ref',
-            metavar='<container-ref>',
-            help="The URI to the key manager service secrets container "
-                 "containing the certificate and key for TERMINATED_TLS "
-                 "pools to re-encrpt the traffic from TERMINATED_TLS "
-                 "listener to backend servers."
-        )
-        parser.add_argument(
-            '--ca-tls-container-ref',
-            metavar='<ca_tls_container_ref>',
-            help="The URI to the key manager service secrets container "
-                 "containing the CA certificate for TERMINATED_TLS listeners "
-                 "to check the backend servers certificates in ssl traffic."
-        )
-        parser.add_argument(
-            '--crl-container-ref',
-            metavar='<crl_container_ref>',
-            help="The URI to the key manager service secrets container "
-                 "containting the CA revocation list file for TERMINATED_TLS "
-                 "listeners to valid the backend servers certificates in ssl "
-                 "traffic."
-        )
-        tls_enable = parser.add_mutually_exclusive_group()
-        tls_enable.add_argument(
-            '--enable-tls',
-            action='store_true',
-            default=None,
-            help="Enable backend associated members re-encryption."
-        )
-        tls_enable.add_argument(
-            '--disable-tls',
-            action='store_true',
-            default=None,
-            help="disable backend associated members re-encryption."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-        parser.add_argument(
-            '--tls-ciphers',
-            metavar='<tls_ciphers>',
-            help="Set the TLS ciphers to be used by the pool "
-                 "in OpenSSL cipher string format."
-        )
-        parser.add_argument(
-            '--tls-version',
-            dest='tls_versions',
-            metavar='<tls_versions>',
-            nargs='?',
-            action='append',
-            help="Set the TLS protocol version to be used "
-                 "by the pool (can be set multiple times)."
-        )
-        parser.add_argument(
-            '--alpn-protocol',
-            dest='alpn_protocols',
-            metavar='<alpn_protocols>',
-            nargs='?',
-            action='append',
-            help="Set the ALPN protocol to be used "
-                 "by the pool (can be set multiple times)."
-        )
-
-        _tag.add_tag_option_to_parser_for_set(parser, 'pool')
 
         return parser
 
@@ -415,110 +238,7 @@ class SetPool(command.Command):
         attrs = v2_utils.get_pool_attrs(self.app.client_manager, parsed_args)
         pool_id = attrs.pop('pool_id')
 
-        v2_utils.set_tags_for_set(
-            self.app.client_manager.load_balancer.pool_show,
-            pool_id, attrs, clear_tags=parsed_args.no_tag)
-
         body = {'pool': attrs}
 
         self.app.client_manager.load_balancer.pool_set(
             pool_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=self.app.client_manager.load_balancer.pool_show,
-                res_id=pool_id
-            )
-
-
-class UnsetPool(command.Command):
-    """Clear pool settings"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'pool',
-            metavar="<pool>",
-            help="Pool to modify (name or ID)."
-        )
-        parser.add_argument(
-            '--name',
-            action='store_true',
-            help="Clear the pool name."
-        )
-        parser.add_argument(
-            '--description',
-            action='store_true',
-            help="Clear the description of this pool."
-        )
-        parser.add_argument(
-            '--ca-tls-container-ref',
-            action='store_true',
-            help="Clear the certificate authority certificate reference on "
-                 "this pool."
-        )
-        parser.add_argument(
-            '--crl-container-ref',
-            action='store_true',
-            help="Clear the certificate revocation list reference on "
-                 "this pool."
-        )
-        parser.add_argument(
-            '--session-persistence',
-            action='store_true',
-            help="Disables session persistence on the pool."
-        )
-        parser.add_argument(
-            '--tls-container-ref',
-            action='store_true',
-            help="Clear the certificate reference for this pool."
-        )
-        parser.add_argument(
-            '--tls-versions',
-            action='store_true',
-            help='Clear all TLS versions from the pool.',
-        )
-        parser.add_argument(
-            '--tls-ciphers',
-            action='store_true',
-            help='Clear all TLS ciphers from the pool.',
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-        parser.add_argument(
-            '--alpn-protocols',
-            action='store_true',
-            help="Clear all ALPN protocols from the pool."
-        )
-
-        _tag.add_tag_option_to_parser_for_unset(parser, 'pool')
-
-        return parser
-
-    def take_action(self, parsed_args):
-        unset_args = v2_utils.get_unsets(parsed_args)
-        if not unset_args and not parsed_args.all_tag:
-            return
-
-        pool_id = v2_utils.get_resource_id(
-            self.app.client_manager.load_balancer.pool_list,
-            'pools', parsed_args.pool)
-
-        v2_utils.set_tags_for_unset(
-            self.app.client_manager.load_balancer.pool_show,
-            pool_id, unset_args, clear_tags=parsed_args.all_tag)
-
-        body = {'pool': unset_args}
-
-        self.app.client_manager.load_balancer.pool_set(
-            pool_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=self.app.client_manager.load_balancer.pool_show,
-                res_id=pool_id
-            )

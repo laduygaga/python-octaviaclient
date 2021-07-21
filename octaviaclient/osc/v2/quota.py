@@ -1,5 +1,3 @@
-#   Copyright 2019 Red Hat, Inc. All rights reserved.
-#
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
 #   a copy of the License at
@@ -20,7 +18,6 @@ from cliff import lister
 from osc_lib.command import command
 from osc_lib import exceptions
 from osc_lib import utils
-from oslo_utils import uuidutils
 
 from octaviaclient.osc.v2 import constants as const
 from octaviaclient.osc.v2 import utils as v2_utils
@@ -30,7 +27,7 @@ class ListQuota(lister.Lister):
     """List quotas"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ListQuota, self).get_parser(prog_name)
 
         parser.add_argument(
             '--project',
@@ -55,7 +52,7 @@ class ShowQuota(command.ShowOne):
     """Show the quota details for a project"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowQuota, self).get_parser(prog_name)
 
         parser.add_argument(
             'project',
@@ -67,21 +64,13 @@ class ShowQuota(command.ShowOne):
 
     def take_action(self, parsed_args):
         rows = const.QUOTA_ROWS
-        data = None
-        if uuidutils.is_uuid_like(parsed_args.project):
-            try:
-                data = self.app.client_manager.load_balancer.quota_show(
-                    project_id=parsed_args.project)
-            except exceptions.NotFound:
-                pass
-        if data is None:
-            attrs = v2_utils.get_quota_attrs(self.app.client_manager,
-                                             parsed_args)
-            project_id = attrs.pop('project_id')
+        attrs = v2_utils.get_quota_attrs(self.app.client_manager,
+                                         parsed_args)
+        project_id = attrs.pop('project_id')
 
-            data = self.app.client_manager.load_balancer.quota_show(
-                project_id=project_id
-            )
+        data = self.app.client_manager.load_balancer.quota_show(
+            project_id=project_id
+        )
 
         return (rows, (utils.get_dict_properties(data, rows)))
 
@@ -101,7 +90,7 @@ class SetQuota(command.ShowOne):
     @staticmethod
     def _check_attrs(attrs):
         args = ['health_monitor', 'listener', 'load_balancer', 'member',
-                'pool', 'l7policy', 'l7rule']
+                'pool']
 
         if not any(arg in attrs for arg in args):
             args = [arg.replace('_', '') for arg in args]
@@ -110,7 +99,7 @@ class SetQuota(command.ShowOne):
             raise exceptions.CommandError(msg)
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(SetQuota, self).get_parser(prog_name)
 
         quota_group = parser.add_argument_group(
             "Quota limits",
@@ -150,20 +139,6 @@ class SetQuota(command.ShowOne):
                   'unlimited.')
         )
 
-        quota_group.add_argument(
-            '--l7policy',
-            metavar='<l7policy>',
-            help=('New value for the l7policy quota limit. Value -1 means '
-                  'unlimited.')
-        )
-
-        quota_group.add_argument(
-            '--l7rule',
-            metavar='<l7rule>',
-            help=('New value for the l7rule quota limit. Value -1 means '
-                  'unlimited.')
-        )
-
         parser.add_argument(
             'project',
             metavar='<project>',
@@ -190,12 +165,12 @@ class ResetQuota(command.Command):
     """Resets quotas to default quotas"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ResetQuota, self).get_parser(prog_name)
 
         parser.add_argument(
             'project',
             metavar="<project>",
-            help="Project to reset quotas (name or ID)."
+            help="Project to reset quotas (name or ID)"
         )
 
         return parser
@@ -208,66 +183,3 @@ class ResetQuota(command.Command):
 
         self.app.client_manager.load_balancer.quota_reset(
             project_id=project_id)
-
-
-class UnsetQuota(command.Command):
-    """Clear quota settings"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'project',
-            metavar='<project>',
-            help="Name or UUID of the project."
-        )
-        parser.add_argument(
-            '--loadbalancer',
-            action='store_true',
-            help="Reset the load balancer quota to the default."
-        )
-        parser.add_argument(
-            '--listener',
-            action='store_true',
-            help="Reset the listener quota to the default."
-        )
-        parser.add_argument(
-            '--pool',
-            action='store_true',
-            help="Reset the pool quota to the default."
-        )
-        parser.add_argument(
-            '--member',
-            action='store_true',
-            help="Reset the member quota to the default."
-        )
-        parser.add_argument(
-            '--healthmonitor',
-            action='store_true',
-            help="Reset the health monitor quota to the default."
-        )
-        parser.add_argument(
-            '--l7policy',
-            action='store_true',
-            help="Reset the l7policy quota to the default."
-        )
-        parser.add_argument(
-            '--l7rule',
-            action='store_true',
-            help="Reset the l7rule quota to the default."
-        )
-        return parser
-
-    def take_action(self, parsed_args):
-        unset_args = v2_utils.get_unsets(parsed_args)
-        if not unset_args:
-            return
-
-        project_id = v2_utils.get_resource_id(
-            self.app.client_manager.identity,
-            'project', parsed_args.project)
-
-        body = {'quota': unset_args}
-
-        self.app.client_manager.load_balancer.quota_set(
-            project_id, json=body)

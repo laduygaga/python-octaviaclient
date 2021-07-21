@@ -14,10 +14,9 @@
 
 LOAD_BALANCER_ROWS = (
     'admin_state_up',
-    'availability_zone',
     'created_at',
     'description',
-    'flavor_id',
+    'flavor',
     'id',
     'listeners',
     'name',
@@ -32,7 +31,6 @@ LOAD_BALANCER_ROWS = (
     'vip_port_id',
     'vip_qos_policy_id',
     'vip_subnet_id',
-    'tags',
 )
 
 LOAD_BALANCER_COLUMNS = (
@@ -41,7 +39,6 @@ LOAD_BALANCER_COLUMNS = (
     'project_id',
     'vip_address',
     'provisioning_status',
-    'operating_status',
     'provider')
 
 LOAD_BALANCER_STATS_ROWS = (
@@ -69,19 +66,7 @@ LISTENER_ROWS = (
     'protocol_port',
     'provisioning_status',
     'sni_container_refs',
-    'timeout_client_data',
-    'timeout_member_connect',
-    'timeout_member_data',
-    'timeout_tcp_inspect',
-    'updated_at',
-    'client_ca_tls_container_ref',
-    'client_authentication',
-    'client_crl_container_ref',
-    'allowed_cidrs',
-    'tls_ciphers',
-    'tls_versions',
-    'alpn_protocols',
-    'tags')
+    'updated_at')
 
 LISTENER_COLUMNS = (
     'id',
@@ -108,15 +93,7 @@ POOL_ROWS = (
     'protocol',
     'provisioning_status',
     'session_persistence',
-    'updated_at',
-    'tls_container_ref',
-    'ca_tls_container_ref',
-    'crl_container_ref',
-    'tls_enabled',
-    'tls_ciphers',
-    'tls_versions',
-    'tags',
-    'alpn_protocols')
+    'updated_at')
 
 POOL_COLUMNS = (
     'id',
@@ -141,9 +118,7 @@ MEMBER_ROWS = (
     'updated_at',
     'weight',
     'monitor_port',
-    'monitor_address',
-    'backup',
-    'tags')
+    'monitor_address')
 
 MEMBER_COLUMNS = (
     'id',
@@ -166,14 +141,11 @@ L7POLICY_ROWS = (
     'updated_at',
     'redirect_pool_id',
     'redirect_url',
-    'redirect_prefix',
     'action',
     'position',
     'id',
     'operating_status',
-    'name',
-    'redirect_http_code',
-    'tags')
+    'name')
 
 L7POLICY_COLUMNS = (
     'id',
@@ -196,8 +168,7 @@ L7RULE_ROWS = (
     'project_id',
     'type',
     'id',
-    'operating_status',
-    'tags')
+    'operating_status')
 
 L7RULE_COLUMNS = (
     'id',
@@ -227,10 +198,8 @@ MONITOR_ROWS = (
     'url_path',
     'type',
     'id',
-    'operating_status',
-    'http_version',
-    'domain_name',
-    'tags')
+    'operating_status'
+)
 
 MONITOR_COLUMNS = (
     'id',
@@ -246,8 +215,6 @@ QUOTA_ROWS = (
     'pool',
     'health_monitor',
     'member',
-    'l7policy',
-    'l7rule',
 )
 
 QUOTA_COLUMNS = (
@@ -257,8 +224,6 @@ QUOTA_COLUMNS = (
     'pool',
     'health_monitor',
     'member',
-    'l7policy',
-    'l7rule',
 )
 
 AMPHORA_ROWS = (
@@ -278,10 +243,6 @@ AMPHORA_ROWS = (
     'vrrp_id',
     'vrrp_priority',
     'cached_zone',
-    'created_at',
-    'updated_at',
-    'image_id',
-    'compute_flavor',
 )
 
 AMPHORA_COLUMNS = (
@@ -292,91 +253,3 @@ AMPHORA_COLUMNS = (
     'lb_network_ip',
     'ha_ip',
 )
-
-AMPHORA_COLUMNS_LONG = (
-    'id',
-    'loadbalancer_id',
-    'status',
-    'role',
-    'lb_network_ip',
-    'ha_ip',
-    'compute_id',
-    'cached_zone',
-    'image_id',
-)
-
-PROVIDER_COLUMNS = (
-    'name',
-    'description',
-)
-
-PROVIDER_CAPABILITY_COLUMNS = (
-    'type',
-    'name',
-    'description',
-)
-
-FLAVOR_ROWS = (
-    'id',
-    'name',
-    'flavor_profile_id',
-    'enabled',
-    'description',
-)
-
-FLAVOR_COLUMNS = (
-    'id',
-    'name',
-    'flavor_profile_id',
-    'enabled',
-)
-
-FLAVORPROFILE_ROWS = (
-    'id',
-    'name',
-    'provider_name',
-    'flavor_data'
-)
-
-FLAVORPROFILE_COLUMNS = (
-    'id',
-    'name',
-    'provider_name',
-)
-
-AVAILABILITYZONE_ROWS = (
-    'name',
-    'availability_zone_profile_id',
-    'enabled',
-    'description',
-)
-
-AVAILABILITYZONE_COLUMNS = (
-    'name',
-    'availability_zone_profile_id',
-    'enabled',
-)
-
-AVAILABILITYZONEPROFILE_ROWS = (
-    'id',
-    'name',
-    'provider_name',
-    'availability_zone_data'
-)
-
-AVAILABILITYZONEPROFILE_COLUMNS = (
-    'id',
-    'name',
-    'provider_name',
-)
-
-PROVISIONING_STATUS = 'provisioning_status'
-STATUS = 'status'
-
-# TCP/UDP port min/max
-MIN_PORT_NUMBER = 1
-MAX_PORT_NUMBER = 65535
-
-# Member weight min/max
-MIN_WEIGHT = 0
-MAX_WEIGHT = 256

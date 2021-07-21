@@ -44,7 +44,7 @@ def execute(cmd, fail_ok=False, merge_stderr=False):
 
 class TestCase(utils.TestCase):
 
-    delimiter_line = re.compile(r'^\+\-[\+\-]+\-\+$')
+    delimiter_line = re.compile('^\+\-[\+\-]+\-\+$')
 
     @classmethod
     def openstack(cls, cmd, fail_ok=False):
@@ -57,7 +57,7 @@ class TestCase(utils.TestCase):
         return cls.openstack('configuration show ' + opts)
 
     @classmethod
-    def get_openstack_extension_names(cls):
+    def get_openstack_extention_names(cls):
         opts = cls.get_opts(['Name'])
         return cls.openstack('extension list ' + opts)
 

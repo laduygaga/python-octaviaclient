@@ -1,5 +1,3 @@
-#   Copyright 2019 Red Hat, Inc. All rights reserved.
-#
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
 #   a copy of the License at
@@ -15,25 +13,20 @@
 
 """Member action implementation"""
 
-import functools
 
 from cliff import lister
 from osc_lib.command import command
-from osc_lib import exceptions
 from osc_lib import utils
-from osc_lib.utils import tags as _tag
-from oslo_utils import uuidutils
 
 from octaviaclient.osc.v2 import constants as const
 from octaviaclient.osc.v2 import utils as v2_utils
-from octaviaclient.osc.v2 import validate
 
 
 class ListMember(lister.Lister):
     """List members in a pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ListMember, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -41,17 +34,16 @@ class ListMember(lister.Lister):
             help="Pool name or ID to list the members of."
         )
 
-        _tag.add_tag_filtering_option_to_parser(parser, 'member')
-
         return parser
 
     def take_action(self, parsed_args):
         columns = const.MEMBER_COLUMNS
 
         attrs = v2_utils.get_member_attrs(self.app.client_manager, parsed_args)
+        pool_id = attrs.pop('pool_id')
 
         data = self.app.client_manager.load_balancer.member_list(
-            **attrs)
+            pool_id=pool_id)
 
         return (columns,
                 (utils.get_dict_properties(
@@ -64,7 +56,7 @@ class ShowMember(command.ShowOne):
     """Shows details of a single Member"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(ShowMember, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -81,35 +73,23 @@ class ShowMember(command.ShowOne):
 
     def take_action(self, parsed_args):
         rows = const.MEMBER_ROWS
-        data = None
-        if (uuidutils.is_uuid_like(parsed_args.pool) and
-                uuidutils.is_uuid_like(parsed_args.member)):
-            try:
-                data = self.app.client_manager.load_balancer.member_show(
-                    pool_id=parsed_args.pool, member_id=parsed_args.member)
-            except exceptions.NotFound:
-                pass
-        if data is None:
-            attrs = v2_utils.get_member_attrs(self.app.client_manager,
-                                              parsed_args)
+        attrs = v2_utils.get_member_attrs(self.app.client_manager, parsed_args)
 
-            member_id = attrs.pop('member_id')
-            pool_id = attrs.pop('pool_id')
+        member_id = attrs.pop('member_id')
+        pool_id = attrs.pop('pool_id')
 
-            data = self.app.client_manager.load_balancer.member_show(
-                pool_id=pool_id, member_id=member_id)
-
-        formatters = {'tags': v2_utils.format_list_flat}
+        data = self.app.client_manager.load_balancer.member_show(
+            pool_id=pool_id, member_id=member_id)
 
         return (rows, (utils.get_dict_properties(
-            data, rows, formatters=formatters)))
+            data, rows, formatters={})))
 
 
 class CreateMember(command.ShowOne):
     """Creating a member in a pool"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(CreateMember, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -121,23 +101,11 @@ class CreateMember(command.ShowOne):
             metavar='<name>',
             help="Name of the member."
         )
-        backup = parser.add_mutually_exclusive_group()
-        backup.add_argument(
-            '--disable-backup',
-            action='store_true',
-            default=None,
-            help="Disable member backup (default)."
-        )
-        backup.add_argument(
-            '--enable-backup',
-            action='store_true',
-            default=None,
-            help="Enable member backup."
-        )
         parser.add_argument(
             '--weight',
             metavar='<weight>',
             type=int,
+            choices=range(0, 256),
             help="The weight of a member determines the portion of requests "
                  "or connections it services compared to the other members of "
                  "the pool."
@@ -145,7 +113,7 @@ class CreateMember(command.ShowOne):
         parser.add_argument(
             '--address',
             metavar='<ip_address>',
-            help="The IP address of the backend member server.",
+            help="The IP address of the backend member server",
             required=True
         )
         parser.add_argument(
@@ -157,6 +125,7 @@ class CreateMember(command.ShowOne):
             '--protocol-port',
             metavar='<protocol_port>',
             type=int,
+            choices=range(1, 65535),
             help="The protocol port number the backend member server is "
                  "listening on.",
             required=True
@@ -165,6 +134,7 @@ class CreateMember(command.ShowOne):
             '--monitor-port',
             metavar='<monitor_port>',
             type=int,
+            choices=range(1, 65535),
             help="An alternate protocol port used for health monitoring a "
                  "backend member.",
         )
@@ -179,31 +149,20 @@ class CreateMember(command.ShowOne):
             '--enable',
             action='store_true',
             default=None,
-            help="Enable member (default)."
+            help="Enable member (default)"
         )
         admin_group.add_argument(
             '--disable',
             action='store_true',
             default=None,
-            help="Disable member."
+            help="Disable member"
         )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_create(
-            parser, 'member')
 
         return parser
 
     def take_action(self, parsed_args):
         rows = const.MEMBER_ROWS
         attrs = v2_utils.get_member_attrs(self.app.client_manager, parsed_args)
-
-        validate.check_member_attrs(attrs)
-
         pool_id = attrs.pop('pool_id')
 
         body = {"member": attrs}
@@ -212,31 +171,16 @@ class CreateMember(command.ShowOne):
             json=body
         )
 
-        if parsed_args.wait:
-            pool = self.app.client_manager.load_balancer.pool_show(pool_id)
-            v2_utils.wait_for_active(
-                status_f=(self.app.client_manager.load_balancer.
-                          load_balancer_show),
-                res_id=pool['loadbalancers'][0]['id']
-            )
-            data = {
-                'member': (
-                    self.app.client_manager.load_balancer.member_show(
-                        pool_id, data['member']['id']))
-            }
-
-        formatters = {'tags': v2_utils.format_list_flat}
-
         return (rows,
                 (utils.get_dict_properties(
-                    data['member'], rows, formatters=formatters)))
+                    data['member'], rows, formatters={})))
 
 
 class SetMember(command.Command):
     """Update a member"""
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(SetMember, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -246,38 +190,27 @@ class SetMember(command.Command):
         parser.add_argument(
             'member',
             metavar='<member>',
-            help="Name or ID of the member to update."
+            help="Name or ID of the member to update"
         )
         parser.add_argument(
             '--name',
             metavar='<name>',
-            help="Set the name of the member."
-        )
-        backup = parser.add_mutually_exclusive_group()
-        backup.add_argument(
-            '--disable-backup',
-            action='store_true',
-            default=None,
-            help="Disable member backup (default)."
-        )
-        backup.add_argument(
-            '--enable-backup',
-            action='store_true',
-            default=None,
-            help="Enable member backup."
+            help="Set the name of the member"
         )
         parser.add_argument(
             '--weight',
             metavar='<weight>',
             type=int,
-            help="Set the weight of member in the pool."
+            choices=range(0, 256),
+            help="Set the weight of member in the pool"
         )
         parser.add_argument(
             '--monitor-port',
             metavar='<monitor_port>',
             type=int,
+            choices=range(1, 65535),
             help="An alternate protocol port used for health monitoring a "
-                 "backend member.",
+                 "backend member",
         )
         parser.add_argument(
             '--monitor-address',
@@ -290,38 +223,20 @@ class SetMember(command.Command):
             '--enable',
             action='store_true',
             default=None,
-            help="Set the admin_state_up to True."
+            help="Set the admin_state_up to True"
         )
         admin_group.add_argument(
             '--disable',
             action='store_true',
             default=None,
-            help="Set the admin_state_up to False.")
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-
-        _tag.add_tag_option_to_parser_for_set(parser, 'member')
+            help="Set the admin_state_up to False")
 
         return parser
 
     def take_action(self, parsed_args):
         attrs = v2_utils.get_member_attrs(self.app.client_manager, parsed_args)
-
-        validate.check_member_attrs(attrs)
-
         pool_id = attrs.pop('pool_id')
         member_id = attrs.pop('member_id')
-
-        member_show = functools.partial(
-            self.app.client_manager.load_balancer.member_show,
-            pool_id
-        )
-        v2_utils.set_tags_for_set(
-            member_show, member_id, attrs, clear_tags=parsed_args.no_tag)
-
         post_data = {"member": attrs}
 
         self.app.client_manager.load_balancer.member_set(
@@ -330,18 +245,12 @@ class SetMember(command.Command):
             json=post_data
         )
 
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=member_show,
-                res_id=member_id
-            )
-
 
 class DeleteMember(command.Command):
     """Delete a member from a pool """
 
     def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
+        parser = super(DeleteMember, self).get_parser(prog_name)
 
         parser.add_argument(
             'pool',
@@ -353,11 +262,6 @@ class DeleteMember(command.Command):
             'member',
             metavar='<member>',
             help="Name or ID of the member to be deleted."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
         )
 
         return parser
@@ -371,98 +275,3 @@ class DeleteMember(command.Command):
             pool_id=pool_id,
             member_id=id
         )
-
-        if parsed_args.wait:
-            member_show = functools.partial(
-                self.app.client_manager.load_balancer.member_show,
-                pool_id
-            )
-            v2_utils.wait_for_delete(
-                status_f=member_show,
-                res_id=id
-            )
-
-
-class UnsetMember(command.Command):
-    """Clear member settings"""
-
-    def get_parser(self, prog_name):
-        parser = super().get_parser(prog_name)
-
-        parser.add_argument(
-            'pool',
-            metavar='<pool>',
-            help="Pool that the member to update belongs to (name or ID)."
-        )
-        parser.add_argument(
-            'member',
-            metavar="<member>",
-            help="Member to modify (name or ID)."
-        )
-        parser.add_argument(
-            '--backup',
-            action='store_true',
-            help="Clear the backup member flag."
-        )
-        parser.add_argument(
-            '--monitor-address',
-            action='store_true',
-            help="Clear the member monitor address."
-        )
-        parser.add_argument(
-            '--monitor-port',
-            action='store_true',
-            help="Clear the member monitor port."
-        )
-        parser.add_argument(
-            '--name',
-            action='store_true',
-            help="Clear the member name."
-        )
-        parser.add_argument(
-            '--weight',
-            action='store_true',
-            help="Reset the member weight to the API default."
-        )
-        parser.add_argument(
-            '--wait',
-            action='store_true',
-            help='Wait for action to complete.',
-        )
-        _tag.add_tag_option_to_parser_for_unset(parser, 'member')
-
-        return parser
-
-    def take_action(self, parsed_args):
-        unset_args = v2_utils.get_unsets(parsed_args)
-        if not unset_args and not parsed_args.all_tag:
-            return
-
-        pool_id = v2_utils.get_resource_id(
-            self.app.client_manager.load_balancer.pool_list,
-            'pools', parsed_args.pool)
-
-        member_show = functools.partial(
-            self.app.client_manager.load_balancer.member_show,
-            pool_id
-        )
-
-        member_dict = {'pool_id': pool_id, 'member_id': parsed_args.member}
-        member_id = v2_utils.get_resource_id(
-            self.app.client_manager.load_balancer.member_list,
-            'members', member_dict)
-
-        v2_utils.set_tags_for_unset(
-            member_show, member_id, unset_args,
-            clear_tags=parsed_args.all_tag)
-
-        body = {'member': unset_args}
-
-        self.app.client_manager.load_balancer.member_set(
-            pool_id=pool_id, member_id=member_id, json=body)
-
-        if parsed_args.wait:
-            v2_utils.wait_for_active(
-                status_f=member_show,
-                res_id=member_id
-            )

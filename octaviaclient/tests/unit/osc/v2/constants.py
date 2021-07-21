@@ -30,7 +30,6 @@ AMPHORA_ATTRS = {
     "vrrp_id": 1,
     "vrrp_priority": 200,
     "cached_zone": "zone2",
-    "image_id": uuidutils.generate_uuid(dashed=True),
 }
 
 HM_ATTRS = {
@@ -53,8 +52,6 @@ HM_ATTRS = {
     "url_path": "/some/custom/path",
     "type": "HTTP",
     "id": uuidutils.generate_uuid(dashed=True),
-    "http_version": 1.1,
-    "domain_name": "testlab.com"
 }
 
 LISTENER_ATTRS = {
@@ -71,18 +68,6 @@ LISTENER_ATTRS = {
     "default_tls_container_ref": uuidutils.generate_uuid(dashed=True),
     "sni_container_refs": [uuidutils.generate_uuid(dashed=True),
                            uuidutils.generate_uuid(dashed=True)],
-    "timeout_client_data": 50000,
-    "timeout_member_connect": 5000,
-    "timeout_member_data": 50000,
-    "timeout_tcp_inspect": 0,
-    'client_ca_tls_container_ref': uuidutils.generate_uuid(dashed=True),
-    'client_authentication': "OPTIONAL",
-    'client_crl_container_ref': uuidutils.generate_uuid(dashed=True),
-    "allowed_cidrs": ['192.0.2.0/24', '198.51.100.0/24'],
-    'tls_ciphers': "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
-    'tls_versions': ['TLSv1.1', 'TLSv1.2'],
-    'alpn_protocols': ['h2', 'http/1.1'],
-    "tags": ["foo", "bar"]
 }
 
 LOADBALANCER_ATTRS = {
@@ -91,13 +76,8 @@ LOADBALANCER_ATTRS = {
     "project_id": uuidutils.generate_uuid(dashed=True),
     "vip_address": "192.0.2.124",
     "vip_network_id": uuidutils.generate_uuid(dashed=True),
-    "vip_subnet_id": uuidutils.generate_uuid(dashed=True),
-    "vip_qos_policy_id": uuidutils.generate_uuid(dashed=True),
-    "provisioning_status": "ACTIVE",
-    "operating_status": "ONLINE",
+    "provisioning_status": "ONLINE",
     "provider": "octavia",
-    "flavor_id": uuidutils.generate_uuid(dashed=True),
-    "tags": ["foo", "bar"]
 }
 
 L7POLICY_ATTRS = {
@@ -131,7 +111,6 @@ L7RULE_ATTRS = {
 MEMBER_ATTRS = {
     "project_id": uuidutils.generate_uuid(dashed=True),
     "name": "test-member",
-    "backup": False,
     "weight": 1,
     "admin_state_up": True,
     "subnet_id": uuidutils.generate_uuid(dashed=True),
@@ -156,14 +135,6 @@ POOL_ATTRS = {
     "project_id": uuidutils.generate_uuid(dashed=True),
     "protocol": "HTTP",
     "provisioning_status": "ACTIVE",
-    "tls_container_ref": uuidutils.generate_uuid(),
-    "ca_tls_container_ref": uuidutils.generate_uuid(),
-    "crl_container_ref": uuidutils.generate_uuid(),
-    "tls_enabled": True,
-    "tls_ciphers": "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
-    "tls_versions": ['TLSv1.1', 'TLSv1.2'],
-    "tags": ["foo", "bar"],
-    "alpn_protocols": ['h2', 'http/1.1']
 }
 
 QUOTA_ATTRS = {
@@ -172,45 +143,5 @@ QUOTA_ATTRS = {
     "load_balancer": 5,
     "member": 50,
     "pool": None,
-    "l7policy": 20,
-    "l7rule": 30,
     "project_id": uuidutils.generate_uuid(dashed=True),
-}
-
-PROVIDER_ATTRS = {
-    "name": "provider1",
-    "description": "Description of provider1."
-}
-
-CAPABILITY_ATTRS = {
-    "name": "some_capability",
-    "description": "Description of capability."
-}
-
-FLAVOR_ATTRS = {
-    "id": uuidutils.generate_uuid(),
-    "name": "fv-name-" + uuidutils.generate_uuid(dashed=True),
-    "flavor_profile_id": None,
-    "enabled": True,
-}
-
-FLAVORPROFILE_ATTRS = {
-    "id": uuidutils.generate_uuid(),
-    "name": "fvpf-name-" + uuidutils.generate_uuid(dashed=True),
-    "provider_name": "mock_provider",
-    "flavor_data": '{"mock_key": "mock_value"}',
-}
-
-AVAILABILITY_ZONE_ATTRS = {
-    "name": "az-name-" + uuidutils.generate_uuid(dashed=True),
-    "availability_zone_profile_id": None,
-    "enabled": True,
-    "description": "Description of AZ",
-}
-
-AVAILABILITY_ZONE_PROFILE_ATTRS = {
-    "id": uuidutils.generate_uuid(),
-    "name": "azpf-name-" + uuidutils.generate_uuid(dashed=True),
-    "provider_name": "mock_provider",
-    "availabilityzone_data": '{"mock_key": "mock_value"}',
 }

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import os
 import sys
 
@@ -24,8 +23,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 extensions = [
     'sphinx.ext.autodoc',
     'openstackdocstheme',
-    'cliff.sphinxext',
-    'sphinxcontrib.rsvgconverter'
+    'cliff.sphinxext'
 ]
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
@@ -39,7 +37,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-copyright = '2016-2019, OpenStack Foundation'
+project = u'python-octaviaclient'
+copyright = u'2016, OpenStack Foundation'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = True
@@ -49,14 +48,7 @@ add_function_parentheses = True
 add_module_names = True
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'native'
-
-# openstackdocstheme options
-openstackdocs_repo_name = 'openstack/python-octaviaclient'
-openstackdocs_pdf_link = True
-openstackdocs_use_storyboard = True
-
-autoprogram_cliff_application = 'openstack'
+pygments_style = 'sphinx'
 
 # -- Options for HTML output --------------------------------------------------
 
@@ -68,73 +60,26 @@ autoprogram_cliff_application = 'openstack'
 
 html_theme = 'openstackdocs'
 
-html_theme_options = {
-    'show_other_versions': True
-}
-
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'python-octaviaclientdoc'
-
-# -- Options for LaTeX output -------------------------------------------------
-
-# Fix Unicode character for sphinx_feature_classification
-# Sphinx default latex engine (pdflatex) doesn't know much unicode
-latex_preamble = r"""
-\usepackage{newunicodechar}
-\newunicodechar{✖}{\sffamily X}
-\setcounter{tocdepth}{2}
-\authoraddress{\textcopyright %s OpenStack Foundation}
-""" % datetime.datetime.now().year
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    # openany: Skip blank pages in generated PDFs
-    'extraclassoptions': 'openany,oneside',
-    'makeindex': '',
-    'printindex': '',
-    'preamble': latex_preamble
-}
-
-# Disable usage of xindy https://bugzilla.redhat.com/show_bug.cgi?id=1643664
-# Some distros are missing xindy
-latex_use_xindy = False
-
-# Fix missing apostrophe
-smartquotes_excludes = {'builders': ['latex']}
+htmlhelp_basename = '%sdoc' % project
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
 # [howto/manual]).
-latex_documents = [(
-    'index',
-    'doc-python-octaviaclient.tex',
-    'Octavia Python Client Documentation',
-    'OpenStack Octavia Team',
-    'manual'
-)]
+latex_documents = [
+    ('index',
+     '%s.tex' % project,
+     u'%s Documentation' % project,
+     u'OpenStack Foundation', 'manual'),
+]
 
-# The name of an image file (relative to this directory) to place at the top of
-# the title page.
-# latex_logo = None
+# Example configuration for intersphinx: refer to the Python standard library.
+#intersphinx_mapping = {'http://docs.python.org/': None}
 
-# For "manual" documents, if this is true, then toplevel headings are parts,
-# not chapters.
-# latex_use_parts = False
+# openstackdocstheme options
+repository_name = 'openstack/python-octaviaclient'
+bug_project = 'octavia'
+bug_tag = 'doc'
+html_last_updated_fmt = '%Y-%m-%d %H:%M'
 
-# If true, show page references after internal links.
-# latex_show_pagerefs = False
-
-# If true, show URL addresses after external links.
-# latex_show_urls = False
-
-# Documents to append as an appendix to all manuals.
-# latex_appendices = []
-
-# If false, no module index is generated.
-latex_domain_indices = False
+autoprogram_cliff_application = 'openstack'

@@ -1,3 +1,0 @@
----
-features:
-  - Added support to query l7policies by a given listener using ``--listener``.
